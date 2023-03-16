@@ -4,6 +4,9 @@ import scipy.io.wavfile as wavfile
 import openpyxl
 import math
 import random
+import sys
+
+sys.chdir('..')
 
 TOTALBINSNO = 100
     
@@ -27,6 +30,7 @@ def writeDataToXlsx(soundFrequencies, occurancesNos, sheet, samplesNo):
     bins = dict(list(enumerate([0]*(TOTALBINSNO+1))))
     
     binSize = round(soundFrequencies.max() / TOTALBINSNO)
+    print('Binsize:', binSize)
     
     for i, frequency in enumerate(soundFrequencies):
         binNo = 0

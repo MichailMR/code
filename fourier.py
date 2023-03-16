@@ -4,6 +4,9 @@ import scipy.io.wavfile as wavfile
 import openpyxl
 import math
 import random
+import os
+
+os.chdir('..')
 
 TOTALBINSNO = 100
     
