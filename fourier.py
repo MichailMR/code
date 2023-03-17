@@ -2,22 +2,22 @@ import numpy as np
 from scipy.fft import fft, fftfreq
 import scipy.io.wavfile as wavfile
 import openpyxl
-import math
 import random
 import os
 
+from math import *
+
 os.chdir('..')
 
+###Fourier specific
 BINSIZE = 100
 MAXSAMPLESAMOUNT = 25000000
 MAXFREQUENCY = 25000
     
-def fourierTransformParse(sampleRate, tone, samplesAmount):
-    xlsxFilePath = "fourier.xlsx"
-    workbook = openpyxl.load_workbook(xlsxFilePath)
-    
-    sheet = workbook.active
+def fourier_to_sheet(sampleRate, tone, sheet, sheetPlace): #.wav format only
     sheet.delete_cols(1,2)
+    
+    samplesAmount = tone.shape[0]
     
     print('Dataset size:', samplesAmount, 'items')
     print(round(samplesAmount / MAXSAMPLESAMOUNT), 'chunks of size:', MAXSAMPLESAMOUNT)
@@ -25,7 +25,7 @@ def fourierTransformParse(sampleRate, tone, samplesAmount):
     bins = dict(list(enumerate([0]*round(MAXFREQUENCY / BINSIZE + 1))))
     
     print(len(bins), 'bins of width:', BINSIZE)
-    print('Binning data...')
+    print('Binning chunks...')
     
     for i in range(0, samplesAmount, MAXSAMPLESAMOUNT):
         print('Chunk', round(i/MAXSAMPLESAMOUNT) + 1, 'of', round(samplesAmount / MAXSAMPLESAMOUNT))
@@ -34,17 +34,14 @@ def fourierTransformParse(sampleRate, tone, samplesAmount):
         chunkFrequencies = fftfreq(MAXSAMPLESAMOUNT, 1 / sampleRate)
         occurances = fft(toneChunk)
         
-        bins = writeDataToBin(chunkFrequencies, occurances, sheet, bins)
+        bins = chunk_binner(chunkFrequencies, occurances, sheet, bins)
     
-    print('Writing to data sheet...')
+    print('Writing fourier results to sheet...')
     for bin in bins.items():
         sheet.cell(row = bin[0]+1, column = 1).value = bin[0]
-        sheet.cell(row = bin[0]+1, column = 2).value = (math.log(bin[1], 10) if bin[1] > 0 else 0)
-    
-    print('Saving to xlsx file...')
-    workbook.save(xlsxFilePath)
+        sheet.cell(row = bin[0]+1, column = 2).value = (log(bin[1], 10) if bin[1] > 0 else 0)
 
-def writeDataToBin(chunkFrequencies, occurances, sheet, bins):
+def chunk_binner(chunkFrequencies, occurances, sheet, bins):
     chunkSize = len(occurances)
 
     for i, frequency in enumerate(chunkFrequencies):
@@ -57,9 +54,21 @@ def writeDataToBin(chunkFrequencies, occurances, sheet, bins):
         
     return bins
 
+wavFilePath = 'B305.wav'
+
 print('reading file... Do not ^C now')
-sampleRate, tone = wavfile.read('B304.wav')
+sampleRate, tone = wavfile.read(wavFilePath)
 samplesAmount = tone.shape[0]
 
-fourierTransformParse(sampleRate, tone, samplesAmount)
+xlsxFilePath = "fourier.xlsx"
+workbook = openpyxl.load_workbook(xlsxFilePath)
+
+sheet = workbook.active
+
+sheetPlace = (0, 0)
+fourier_to_sheet(sampleRate, tone, sheet, sheetPlace)
+
+print('Saving to xlsx file...')
+workbook.save(xlsxFilePath)
+
 print('Done!')
