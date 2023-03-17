@@ -8,47 +8,58 @@ import os
 
 os.chdir('..')
 
-TOTALBINSNO = 100
+BINSIZE = 100
+MAXSAMPLESAMOUNT = 25000000
+MAXFREQUENCY = 25000
     
-def fourier_transform_parse(sampleRate, tone, samplesNo):
-    soundFrequencies = fftfreq(samplesNo, 1 / sampleRate)
-    occurancesNos = fft(tone)
-
+def fourierTransformParse(sampleRate, tone, samplesAmount):
     xlsxFilePath = "fourier.xlsx"
     workbook = openpyxl.load_workbook(xlsxFilePath)
     
     sheet = workbook.active
     sheet.delete_cols(1,2)
     
-    print('Binning data')
-    writeDataToXlsx(soundFrequencies, occurancesNos, sheet, samplesNo)
+    print('Dataset size:', samplesAmount, 'items')
+    print(round(samplesAmount / MAXSAMPLESAMOUNT), 'chunks of size:', MAXSAMPLESAMOUNT)
     
-    print('Saving to xlsx file')
-    workbook.save(xlsxFilePath)
-
-def writeDataToXlsx(soundFrequencies, occurancesNos, sheet, samplesNo):
-    bins = dict(list(enumerate([0]*(TOTALBINSNO+1))))
+    bins = dict(list(enumerate([0]*round(MAXFREQUENCY / BINSIZE + 1))))
     
-    binSize = round(soundFrequencies.max() / TOTALBINSNO)
-    print('Binsize:', binSize)
+    print(len(bins), 'bins of width:', BINSIZE)
+    print('Binning data...')
     
-    for i, frequency in enumerate(soundFrequencies):
-        binNo = 0
-        while frequency > (binNo+1) * binSize:
-            binNo += 1
+    for i in range(0, samplesAmount, MAXSAMPLESAMOUNT):
+        print('Chunk', round(i/MAXSAMPLESAMOUNT) + 1, 'of', round(samplesAmount / MAXSAMPLESAMOUNT))
+        toneChunk = tone[i: MAXSAMPLESAMOUNT+i]
         
-        if random.choice(range(samplesNo)) < samplesNo/10000000: print(round(i / samplesNo * 100), 'percent')
+        chunkFrequencies = fftfreq(MAXSAMPLESAMOUNT, 1 / sampleRate)
+        occurances = fft(toneChunk)
         
-        bins[binNo] += int(np.abs(occurancesNos[i].real[0]))
+        bins = writeDataToBin(chunkFrequencies, occurances, sheet, bins)
     
-    print('Writing to data sheet')
-    
+    print('Writing to data sheet...')
     for bin in bins.items():
         sheet.cell(row = bin[0]+1, column = 1).value = bin[0]
         sheet.cell(row = bin[0]+1, column = 2).value = (math.log(bin[1], 10) if bin[1] > 0 else 0)
+    
+    print('Saving to xlsx file...')
+    workbook.save(xlsxFilePath)
 
-print('reading file')
-sampleRate, tone = wavfile.read('B305.wav')
-samplesNo = tone.shape[0]
+def writeDataToBin(chunkFrequencies, occurances, sheet, bins):
+    chunkSize = len(occurances)
 
-fourier_transform_parse(sampleRate, tone, samplesNo)
+    for i, frequency in enumerate(chunkFrequencies):
+        if frequency > MAXFREQUENCY or i >= len(occurances): continue
+        
+        binNumber = int(abs(frequency / BINSIZE))
+        bins[binNumber] += int(np.abs(occurances[i].real[0]))
+        
+        if random.choice(range(chunkSize)) < 10: print(round(i / chunkSize * 100), 'percent')
+        
+    return bins
+
+print('reading file... Do not ^C now')
+sampleRate, tone = wavfile.read('B304.wav')
+samplesAmount = tone.shape[0]
+
+fourierTransformParse(sampleRate, tone, samplesAmount)
+print('Done!')
